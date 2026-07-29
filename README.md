@@ -1,12 +1,16 @@
-# AppAlive
+<p align="center">
+  <img src="docs/logo.png" alt="AppAlive" width="200" height="200">
+</p>
 
-An adb-installed Android app that keeps a configured set of apps running — and
-keeps itself running — against aggressive OEM task killers.
+<h1 align="center">AppAlive</h1>
 
-No root required. Provisions itself as **Device Owner** so it gets the strongest
-privileges adb can hand out.
-
-![AppAlive icon set](docs/logo-preview.png)
+<p align="center">
+  Keeps a configured set of Android apps running — and keeps itself running —<br>
+  against aggressive OEM task killers.<br>
+  <br>
+  Installed over adb. No root. Provisions itself as <b>Device Owner</b> for the
+  strongest privileges adb can hand out.
+</p>
 
 ```bash
 ./build.sh
@@ -17,6 +21,35 @@ privileges adb can hand out.
 
 On Windows, `install.cmd` / `uninstall.cmd` / `status.cmd` / `build.cmd` wrap the
 same scripts through Git Bash.
+
+`--targets` is optional — the installer opens a configuration app on the device
+where the apps and every setting can be chosen by hand. Use the flag when you are
+scripting a fleet.
+
+---
+
+## Configuring on the device
+
+The installer lands you on a real settings screen, so whoever ends up holding the
+phone never has to touch adb:
+
+- **Choose apps** — a searchable list of installed apps with tick boxes. System
+  packages are behind a toggle.
+- **Per-app escalation** — tap an app to pick *never open it*, *only when the
+  screen is off* (default), or *always*, plus **Revive now** and **Remove**.
+- **Behaviour** — hold apps in memory, restart after a manual Force Stop, the
+  watchdog helper notification, keep the CPU awake.
+- **Protection** — Device Owner state, block uninstall, disable Force Stop.
+- **Manufacturer settings** — the vendor auto-start screen, battery optimisation,
+  and the overlay permission.
+- **Diagnostics** — the full watchdog dump, and a **Copy exemption command**
+  button.
+
+One thing the screen is deliberately honest about: an app added **in the UI** is
+watched and revived, but does **not** get the battery exemptions. Setting app ops
+or the power allowlist for *another* package needs signature-level permissions
+that no ordinary app can hold — only adb can. Such apps are flagged `NOT EXEMPT`,
+and Diagnostics hands you the exact `./install.sh --targets …` line to fix it.
 
 ---
 
@@ -258,6 +291,8 @@ It generates a local signing key in `keystore/` on first run. **Keep it** —
 reinstalling over an existing install requires the same signature.
 
 ### Icons
+
+![AppAlive icon set](docs/logo-preview.png)
 
 The mark is a shield with an ECG pulse knocked out of it — protected, and alive.
 Knocking the pulse out rather than drawing it on top keeps the whole thing to

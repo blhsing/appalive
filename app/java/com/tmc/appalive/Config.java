@@ -168,6 +168,75 @@ public final class Config {
         return out;
     }
 
+    public void saveTargets(List<TargetSpec> specs) {
+        JSONArray arr = new JSONArray();
+        for (int i = 0; i < specs.size(); i++) {
+            arr.put(specs.get(i).toJson());
+        }
+        prefs.edit().putString(KEY_TARGETS, arr.toString()).commit();
+    }
+
+    public boolean hasTarget(String pkg) {
+        List<TargetSpec> specs = targets();
+        for (int i = 0; i < specs.size(); i++) {
+            if (specs.get(i).pkg.equals(pkg)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void addTarget(String pkg) {
+        if (hasTarget(pkg)) {
+            return;
+        }
+        List<TargetSpec> specs = targets();
+        specs.add(new TargetSpec(pkg, TargetSpec.ESCALATE_SCREEN_OFF, true));
+        saveTargets(specs);
+    }
+
+    public void removeTarget(String pkg) {
+        List<TargetSpec> specs = targets();
+        for (int i = specs.size() - 1; i >= 0; i--) {
+            if (specs.get(i).pkg.equals(pkg)) {
+                specs.remove(i);
+            }
+        }
+        saveTargets(specs);
+    }
+
+    public void setTargetEscalate(String pkg, int mode) {
+        List<TargetSpec> specs = targets();
+        for (int i = 0; i < specs.size(); i++) {
+            TargetSpec s = specs.get(i);
+            if (s.pkg.equals(pkg)) {
+                specs.set(i, new TargetSpec(s.pkg, mode, s.enabled));
+            }
+        }
+        saveTargets(specs);
+    }
+
+    /** The form install.sh takes, for showing the user a copyable command. */
+    public String targetsCsv() {
+        List<TargetSpec> specs = targets();
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < specs.size(); i++) {
+            if (i > 0) {
+                sb.append(',');
+            }
+            TargetSpec s = specs.get(i);
+            sb.append(s.pkg);
+            if (s.escalate != TargetSpec.ESCALATE_SCREEN_OFF) {
+                sb.append(':').append(TargetSpec.escalateName(s.escalate));
+            }
+        }
+        return sb.toString();
+    }
+
+    public void setBool(String key, boolean value) {
+        prefs.edit().putBoolean(key, value).commit();
+    }
+
     /** Accepts "com.foo,com.bar:always,com.baz:never". */
     public void setTargetsCsv(String csv) {
         JSONArray arr = new JSONArray();

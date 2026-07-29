@@ -229,7 +229,16 @@ def make_adaptive_foreground(size):
     return downsample(buf, n, SS)
 
 
+def make_hero(size=512):
+    """Large square mark for the README header and any store-style listing."""
+    return make_launcher_icon(size)
+
+
 def main():
+    print("README hero:")
+    write_png(os.path.join(os.path.dirname(HERE), "docs", "logo.png"),
+              make_hero(512), 512)
+
     print("notification icon (white silhouette, 24dp baseline):")
     for bucket, size in (("mdpi", 24), ("hdpi", 36), ("xhdpi", 48), ("xxhdpi", 72)):
         write_png(os.path.join(RES, "drawable-" + bucket, "ic_stat_alive.png"),
