@@ -6,6 +6,8 @@ keeps itself running — against aggressive OEM task killers.
 No root required. Provisions itself as **Device Owner** so it gets the strongest
 privileges adb can hand out.
 
+![AppAlive icon set](docs/logo-preview.png)
+
 ```bash
 ./build.sh
 ./install.sh --targets com.example.one,com.example.two
@@ -255,8 +257,28 @@ and a JDK. No Gradle, no network, no AGP download.
 It generates a local signing key in `keystore/` on first run. **Keep it** —
 reinstalling over an existing install requires the same signature.
 
-Icons are generated from `tools/make_icons.py` (stdlib only) rather than
-committed as opaque binaries.
+### Icons
+
+The mark is a shield with an ECG pulse knocked out of it — protected, and alive.
+Knocking the pulse out rather than drawing it on top keeps the whole thing to
+two tones, which is what survives being scaled to a 24dp status-bar glyph.
+
+Everything is generated from `tools/make_icons.py` (stdlib only, a small
+supersampled rasteriser) rather than committed as opaque binaries:
+
+- `mipmap-anydpi-v26/ic_launcher.xml` — adaptive icon for API 26+, foreground
+  scaled to ~0.55 of the 108dp canvas so a *tall* shield still clears the 66dp
+  safe zone under any launcher mask
+- `mipmap-*/ic_launcher.png` — legacy launcher icon for API 21–25, which carries
+  its own rounded-square background
+- `drawable-*/ic_stat_alive.png` — white notification silhouette. A status icon
+  is always drawn at 24dp whatever density bucket it came from, so this variant
+  uses a **simplified** single-spike trace; the full ECG's secondary bump closes
+  up and reads as noise once the stroke is ~2px.
+
+`python tools/make_preview.py` regenerates `docs/logo-preview.png`, the contact
+sheet above, at real pixel sizes — including both launcher masks and the glyph
+down to 24dp.
 
 A Gradle project is included for Android Studio, but see the warning in
 `app/build.gradle`: it needs network access for AGP and **was not verified**,

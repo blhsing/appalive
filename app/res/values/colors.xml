@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Adaptive-icon background. Matches the dark slate in tools/make_icons.py;
+         change both together. -->
+    <color name="ic_launcher_background">#10333F</color>
+</resources>

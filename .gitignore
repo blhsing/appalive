@@ -17,3 +17,7 @@ local.properties
 *.iml
 .idea/
 captures/
+
+# Python bytecode from tools/make_preview.py importing make_icons
+__pycache__/
+*.pyc
