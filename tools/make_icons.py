@@ -1,16 +1,23 @@
 #!/usr/bin/env python3
-"""Generate AppAlive's PNG icons with no third-party dependencies.
+"""Generate AppAlive's icons with no third-party dependencies.
 
-Notification small icons must be PNG: VectorDrawable cannot be inflated inside
-RemoteViews below API 24, so a vector would fail on part of our minSdk 21 range.
-Rather than commit opaque binaries, we generate them here from a tiny
-supersampled rasterizer (stdlib zlib/struct only).
+The mark is a shield with an ECG pulse knocked out of it: protected, and alive.
+Knocking the pulse out rather than drawing it on top keeps exactly two tones,
+which is what survives being scaled down to a 24dp status-bar glyph.
+
+Notification icons must be PNG: VectorDrawable cannot be inflated inside
+RemoteViews below API 24, and minSdk is 21. Rather than commit opaque binaries
+we draw them here with a small supersampled rasterizer (stdlib only).
 
     python tools/make_icons.py
 
-Writes app/res/drawable-*/ic_stat_alive.png and app/res/mipmap-*/ic_launcher.png.
+Writes:
+  app/res/drawable-*/ic_stat_alive.png          white silhouette, transparent
+  app/res/mipmap-*/ic_launcher.png              legacy launcher icon
+  app/res/mipmap-*/ic_launcher_foreground.png   adaptive-icon foreground (API 26+)
 """
 
+import math
 import os
 import struct
 import zlib
@@ -20,15 +27,47 @@ RES = os.path.join(os.path.dirname(HERE), "app", "res")
 
 SS = 4  # supersampling factor, for antialiasing
 
-# An ECG/heartbeat trace, in unit coordinates (0..1), y down.
+BG = (0x10, 0x33, 0x3F, 0xFF)   # dark slate
+FG = (0x34, 0xD3, 0x99, 0xFF)   # "alive" green
+WHITE = (0xFF, 0xFF, 0xFF, 0xFF)
+CLEAR = (0, 0, 0, 0)
+
+# --- shield geometry, in unit coordinates (0..1, y down) --------------------
+SHIELD_TOP = 0.06
+SHIELD_TIP = 0.97
+SHIELD_HALF_W = 0.37
+SHIELD_SHOULDER = 0.50   # y below which the sides start converging
+SHIELD_CORNER = 0.11     # top corner rounding radius
+
+# An ECG trace sized to sit inside the shield's widest band.
 PULSE = [
-    (0.08, 0.54), (0.30, 0.54), (0.39, 0.26), (0.50, 0.78),
-    (0.60, 0.42), (0.68, 0.54), (0.92, 0.54),
+    (0.20, 0.45), (0.33, 0.45), (0.40, 0.29), (0.50, 0.63),
+    (0.57, 0.39), (0.64, 0.45), (0.80, 0.45),
 ]
 
-BG = (0x10, 0x33, 0x3F, 0xFF)      # dark slate
-FG = (0x34, 0xD3, 0x99, 0xFF)      # "alive" green
-WHITE = (0xFF, 0xFF, 0xFF, 0xFF)
+# A status-bar icon is always drawn at 24dp no matter which density bucket it
+# came from, so it gets a simplified trace at every size: the secondary bump
+# above closes up and reads as noise once the stroke is ~2px.
+PULSE_SIMPLE = [
+    (0.17, 0.46), (0.36, 0.46), (0.45, 0.27), (0.56, 0.65),
+    (0.65, 0.46), (0.83, 0.46),
+]
+
+
+def shield_half_width(y):
+    """Half-width of the shield at height y, or None if outside it."""
+    if y < SHIELD_TOP or y > SHIELD_TIP:
+        return None
+    if y <= SHIELD_SHOULDER:
+        # straight sides, with the top corners rounded off
+        if y < SHIELD_TOP + SHIELD_CORNER:
+            dy = (SHIELD_TOP + SHIELD_CORNER) - y
+            inset = SHIELD_CORNER - math.sqrt(max(0.0, SHIELD_CORNER ** 2 - dy ** 2))
+            return SHIELD_HALF_W - inset
+        return SHIELD_HALF_W
+    # below the shoulder the sides bulge outward slightly, then meet at a point
+    t = (y - SHIELD_SHOULDER) / (SHIELD_TIP - SHIELD_SHOULDER)
+    return SHIELD_HALF_W * (max(0.0, 1.0 - t * t) ** 0.62)
 
 
 def blend(dst, src):
@@ -41,22 +80,20 @@ def blend(dst, src):
     da = dst[3] / 255.0
     oa = sa + da * (1 - sa)
     if oa <= 0:
-        return (0, 0, 0, 0)
+        return CLEAR
     out = [int(round((src[i] * sa + dst[i] * da * (1 - sa)) / oa)) for i in range(3)]
     return (out[0], out[1], out[2], int(round(oa * 255)))
 
 
 def new_canvas(n):
-    return [[(0, 0, 0, 0)] * n for _ in range(n)]
+    return [[CLEAR] * n for _ in range(n)]
 
 
 def fill_round_rect(buf, n, inset, radius, color):
-    """Filled rounded square covering [inset, n-inset) with corner `radius`."""
     x0 = y0 = inset
     x1 = y1 = n - inset
     for y in range(n):
         for x in range(n):
-            # distance-to-rounded-rect test
             cx = min(max(x + 0.5, x0 + radius), x1 - radius)
             cy = min(max(y + 0.5, y0 + radius), y1 - radius)
             dx = (x + 0.5) - cx
@@ -65,13 +102,32 @@ def fill_round_rect(buf, n, inset, radius, color):
                 buf[y][x] = blend(buf[y][x], color)
 
 
-def stroke_polyline(buf, n, pts, width, color):
-    """Round-capped, round-joined polyline via per-segment distance test."""
-    half = width / 2.0
-    px = [(x * n, y * n) for (x, y) in pts]
-    for i in range(len(px) - 1):
-        ax, ay = px[i]
-        bx, by = px[i + 1]
+def fill_shield(buf, n, box, color):
+    """box = (ox, oy, size) placing the unit square onto the canvas."""
+    ox, oy, size = box
+    lo = max(0, int(oy + SHIELD_TOP * size) - 2)
+    hi = min(n, int(oy + SHIELD_TIP * size) + 2)
+    for py in range(lo, hi):
+        uy = ((py + 0.5) - oy) / size
+        hw = shield_half_width(uy)
+        if hw is None:
+            continue
+        x_lo = max(0, int(ox + (0.5 - hw) * size))
+        x_hi = min(n, int(ox + (0.5 + hw) * size) + 1)
+        for px in range(x_lo, x_hi):
+            ux = ((px + 0.5) - ox) / size
+            if abs(ux - 0.5) <= hw:
+                buf[py][px] = blend(buf[py][px], color)
+
+
+def stroke_polyline(buf, n, box, pts, width, color):
+    """Round-capped polyline. color=None erases (used to knock out the pulse)."""
+    ox, oy, size = box
+    half = width * size / 2.0
+    px_pts = [(ox + x * size, oy + y * size) for (x, y) in pts]
+    for i in range(len(px_pts) - 1):
+        ax, ay = px_pts[i]
+        bx, by = px_pts[i + 1]
         vx, vy = bx - ax, by - ay
         seg2 = vx * vx + vy * vy
         lo_x = max(0, int(min(ax, bx) - half - 2))
@@ -84,13 +140,12 @@ def stroke_polyline(buf, n, pts, width, color):
                 t = 0.0 if seg2 == 0 else max(0.0, min(1.0, (qx * vx + qy * vy) / seg2))
                 dx, dy = qx - t * vx, qy - t * vy
                 if dx * dx + dy * dy <= half * half:
-                    buf[y][x] = color
+                    buf[y][x] = CLEAR if color is None else color
 
 
 def downsample(buf, n, factor):
-    """Box-filter the supersampled canvas down to its final size."""
     out_n = n // factor
-    out = [[(0, 0, 0, 0)] * out_n for _ in range(out_n)]
+    out = [[CLEAR] * out_n for _ in range(out_n)]
     area = factor * factor
     for y in range(out_n):
         for x in range(out_n):
@@ -99,15 +154,12 @@ def downsample(buf, n, factor):
                 row = buf[sy]
                 for sx in range(x * factor, (x + 1) * factor):
                     pr, pg, pb, pa = row[sx]
-                    # premultiply so transparent pixels don't drag colour in
+                    # premultiply, so transparent pixels drag no colour in
                     r += pr * pa
                     g += pg * pa
                     b += pb * pa
                     a += pa
-            if a == 0:
-                out[y][x] = (0, 0, 0, 0)
-            else:
-                out[y][x] = (r // a, g // a, b // a, a // area)
+            out[y][x] = CLEAR if a == 0 else (r // a, g // a, b // a, a // area)
     return out
 
 
@@ -130,38 +182,70 @@ def write_png(path, buf, n):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "wb") as fh:
         fh.write(png)
-    print("  %-56s %dx%d" % (os.path.relpath(path, os.path.dirname(HERE)), n, n))
+    print("  %-58s %dx%d" % (os.path.relpath(path, os.path.dirname(HERE)), n, n))
+
+
+def centred_box(n, scale):
+    size = n * scale
+    off = (n - size) / 2.0
+    return (off, off, size)
 
 
 def make_status_icon(size):
-    """White pulse on transparent; the system tints status-bar icons itself."""
+    """White shield, pulse punched through to transparent. The system tints it."""
     n = size * SS
     buf = new_canvas(n)
-    stroke_polyline(buf, n, PULSE, 0.10 * n, WHITE)
+    box = centred_box(n, 0.94)
+    fill_shield(buf, n, box, WHITE)
+    # Simplified trace and a heavier stroke: this is always shown at 24dp.
+    stroke_polyline(buf, n, box, PULSE_SIMPLE, 0.115, None)
     return downsample(buf, n, SS)
 
 
 def make_launcher_icon(size):
+    """Legacy icon: dark rounded square, green shield, pulse cut back to the square."""
     n = size * SS
     buf = new_canvas(n)
     fill_round_rect(buf, n, 0.045 * n, 0.21 * n, BG)
-    stroke_polyline(buf, n, PULSE, 0.085 * n, FG)
+    box = centred_box(n, 0.66)
+    fill_shield(buf, n, box, FG)
+    stroke_polyline(buf, n, box, PULSE, 0.095, BG)
+    return downsample(buf, n, SS)
+
+
+def make_adaptive_foreground(size):
+    """
+    Adaptive-icon foreground: 108dp canvas, content inside the 66dp safe zone.
+
+    Launchers mask this to a circle/squircle and may parallax it, so the shield
+    is scaled to ~0.55 of the canvas - comfortably inside the safe zone even
+    though a shield is taller than it is wide.
+    """
+    n = size * SS
+    buf = new_canvas(n)
+    box = centred_box(n, 0.55)
+    fill_shield(buf, n, box, FG)
+    stroke_polyline(buf, n, box, PULSE, 0.095, None)
     return downsample(buf, n, SS)
 
 
 def main():
-    # Notification icon: 24dp baseline.
-    print("notification icon (white on transparent):")
+    print("notification icon (white silhouette, 24dp baseline):")
     for bucket, size in (("mdpi", 24), ("hdpi", 36), ("xhdpi", 48), ("xxhdpi", 72)):
         write_png(os.path.join(RES, "drawable-" + bucket, "ic_stat_alive.png"),
                   make_status_icon(size), size)
 
-    # Launcher icon: 48dp baseline.
-    print("launcher icon:")
+    print("legacy launcher icon (48dp baseline):")
     for bucket, size in (("mdpi", 48), ("hdpi", 72), ("xhdpi", 96),
                          ("xxhdpi", 144), ("xxxhdpi", 192)):
         write_png(os.path.join(RES, "mipmap-" + bucket, "ic_launcher.png"),
                   make_launcher_icon(size), size)
+
+    print("adaptive icon foreground (108dp baseline, API 26+):")
+    for bucket, size in (("mdpi", 108), ("hdpi", 162), ("xhdpi", 216),
+                         ("xxhdpi", 324), ("xxxhdpi", 432)):
+        write_png(os.path.join(RES, "mipmap-" + bucket, "ic_launcher_foreground.png"),
+                  make_adaptive_foreground(size), size)
 
 
 if __name__ == "__main__":

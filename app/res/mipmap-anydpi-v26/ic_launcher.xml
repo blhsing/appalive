@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive icon, used on API 26+. Below that the platform falls back to the
+  legacy mipmap-*/ic_launcher.png, which carries its own rounded-square
+  background because nothing else supplies one.
+
+  The foreground PNG is a 108dp canvas with the shield scaled to ~0.55 of it,
+  so the mark stays inside the 66dp safe zone under any launcher mask - a
+  shield is taller than it is wide, so the vertical extent is what binds.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>
