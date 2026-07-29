@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  NOTE: there is deliberately no package="..." attribute here.
+
+  The offline build (build.sh) injects it into a build-directory copy, because
+  aapt2 requires it; the Gradle path declares `namespace` in build.gradle, and
+  AGP 8+ treats a package attribute in the source manifest as a hard error.
+  Keeping it out of the file on disk is the only way both build paths stay
+  correct without maintaining two manifests.
+
+  minSdk/targetSdk are likewise supplied by the build (aapt2 link flags, or
+  build.gradle), so TARGET_SDK stays a single knob. See README for why we
+  deliberately target 28.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    android:versionCode="1"
+    android:versionName="1.0.0">
+
+    <!-- Self-preservation -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
+    <!-- Death detection for other packages. protectionLevel is
+         signature|privileged|development, so `adb shell pm grant` works. -->
+    <uses-permission android:name="android.permission.DUMP" />
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
+
+    <!-- Background activity starts. Device Owner already grants this, but the
+         SYSTEM_ALERT_WINDOW route is an independent fallback if provisioning
+         failed. Granted over adb via appops. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- Needed to enumerate and revive targets once targetSdk >= 30. Harmless
+         at targetSdk 28 (no filtering applies); declared for forward-compat. -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+
+    <!-- Only enforced at targetSdk >= 33/34 respectively. Declared so that
+         raising TARGET_SDK does not silently break the notification or FGS. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <!-- Deliberately NOT requested: INTERNET. This app never talks to a network. -->
+
+    <application
+        android:name=".AppAliveApp"
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:killAfterRestore="false"
+        android:supportsRtl="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- stopWithTask=false: swiping the app out of Recents must not stop it.
+             directBootAware: must come up before first unlock after a reboot;
+             all state these components touch lives in device-protected storage. -->
+        <service
+            android:name=".AliveService"
+            android:exported="false"
+            android:directBootAware="true"
+            android:stopWithTask="false" />
+
+        <!-- Second process. AliveService and GuardService bind each other and
+             linkToDeath on the peer's binder, so killing either one is noticed
+             immediately by the survivor, which restarts it. -->
+        <service
+            android:name=".GuardService"
+            android:exported="false"
+            android:process=":guard"
+            android:directBootAware="true"
+            android:stopWithTask="false" />
+
+        <service
+            android:name=".AliveJobService"
+            android:exported="true"
+            android:directBootAware="true"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true"
+            android:directBootAware="true">
+            <intent-filter android:priority="1000">
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".AlarmReceiver"
+            android:exported="false"
+            android:directBootAware="true" />
+
+        <!-- adb control channel.
+
+             Guarded by DUMP: com.android.shell holds it (verified in
+             packages/Shell/AndroidManifest.xml), so `adb shell am broadcast`
+             can reach this receiver, while an ordinary third-party app cannot
+             (DUMP is signature|privileged|development and is not obtainable by
+             a normal app). This is what keeps an exported control surface from
+             being a back door. -->
+        <receiver
+            android:name=".ControlReceiver"
+            android:exported="true"
+            android:directBootAware="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="com.tmc.appalive.action.CONTROL" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".AdminReceiver"
+            android:exported="true"
+            android:directBootAware="true"
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+                <action android:name="android.app.action.DEVICE_ADMIN_DISABLE_REQUESTED" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

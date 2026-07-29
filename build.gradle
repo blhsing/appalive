@@ -1,0 +1,8 @@
+// Root build file for the optional Android Studio project.
+//
+// Pin an Android Gradle Plugin version compatible with your local Gradle. If
+// the sync fails on the version below, that is the first thing to change --
+// this path could not be verified offline (no AGP in the Gradle cache).
+plugins {
+    id 'com.android.application' version '8.7.3' apply false
+}

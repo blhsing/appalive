@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Minimal policy set. Device Owner status itself is what we need (uninstall
+  blocking, DISALLOW_APPS_CONTROL, background activity starts); we deliberately
+  do not request password/wipe/encryption policies we never use, so the admin
+  entry stays honest about its scope.
+-->
+<device-admin xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-policies></uses-policies>
+</device-admin>

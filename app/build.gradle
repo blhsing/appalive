@@ -1,0 +1,65 @@
+// ---------------------------------------------------------------------------
+// UNVERIFIED BUILD PATH.
+//
+// The supported, tested build is ../build.sh -- fully offline, no Gradle, no
+// network. This file exists so the project opens in Android Studio, but it was
+// NOT executed during development: there is no Android Gradle Plugin in the
+// local Gradle cache and no network access to fetch one. Expect to adjust the
+// AGP version in ../build.gradle before it syncs.
+//
+// The source layout is flat (app/java, app/res, app/AndroidManifest.xml) so
+// that build.sh can drive aapt2/javac/d8 directly; sourceSets below maps that
+// onto what AGP expects.
+//
+// AndroidManifest.xml deliberately has no package="..." attribute -- AGP 8+
+// treats one as a hard error, and build.sh injects it into a build-directory
+// copy because aapt2 requires it. Do not add it back.
+// ---------------------------------------------------------------------------
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.tmc.appalive'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.tmc.appalive'
+        minSdk 21
+        // Deliberate. See the "Why targetSdk 28" section in the README before
+        // raising this -- it is what exempts the app from the Android 14/15
+        // foreground-service and boot restrictions the task killer relies on.
+        targetSdk 28
+        versionCode 1
+        versionName '1.0.0'
+    }
+
+    sourceSets {
+        main {
+            manifest.srcFile 'AndroidManifest.xml'
+            java.srcDirs = ['java']
+            res.srcDirs = ['res']
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    lint {
+        // Targeting an old SDK on purpose; do not fail the build over it.
+        disable 'ExpiredTargetSdkVersion', 'OldTargetApi'
+    }
+}
+
+// No dependencies at all -- not even AndroidX. Keeps the APK ~58 KB and lets
+// build.sh work with nothing but the SDK and a JDK.
+dependencies {
+}

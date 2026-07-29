@@ -1,0 +1,19 @@
+# Build output
+build/
+dist/
+
+# Signing key. Deliberately not committed: it is a private key, even though it
+# is only debug-grade. If several people deploy the same install, share this
+# file out of band -- otherwise a rebuild will not upgrade an existing install
+# and install.sh will tell you to uninstall first.
+keystore/
+
+# Written by install.sh, restored by uninstall.sh. Machine- and device-specific.
+.appalive-install-state
+
+# Gradle / IDE (the optional Android Studio path)
+.gradle/
+local.properties
+*.iml
+.idea/
+captures/

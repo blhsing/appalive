@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AppAlive</string>
+    <string name="channel_name">Keep-alive service</string>
+    <string name="channel_desc">Ongoing notification required to run the keep-alive foreground service.</string>
+    <string name="guard_channel_name">Keep-alive guard</string>
+    <string name="guard_channel_desc">Ongoing notification for the watchdog process that restarts the main service.</string>
+    <string name="admin_label">AppAlive device policy</string>
+    <string name="admin_description">Lets AppAlive block uninstall and disable Force Stop for the apps it keeps running.</string>
+</resources>

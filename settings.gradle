@@ -1,0 +1,19 @@
+// Optional Android Studio project. The supported build is ./build.sh, which is
+// fully offline. See app/build.gradle for the caveat.
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'AppAlive'
+include ':app'
