@@ -50,7 +50,8 @@
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="false"
         android:killAfterRestore="false"
-        android:supportsRtl="true">
+        android:supportsRtl="true"
+        android:theme="@style/AppAliveTheme">
 
         <activity
             android:name=".MainActivity"
@@ -62,6 +63,20 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Configuration screens. Not exported: nothing else needs to launch
+             them, and they can change what the service does. -->
+        <activity
+            android:name=".AppPickerActivity"
+            android:exported="false"
+            android:label="Choose apps"
+            android:parentActivityName=".MainActivity" />
+
+        <activity
+            android:name=".DiagnosticsActivity"
+            android:exported="false"
+            android:label="Diagnostics"
+            android:parentActivityName=".MainActivity" />
 
         <!-- stopWithTask=false: swiping the app out of Recents must not stop it.
              directBootAware: must come up before first unlock after a reboot;

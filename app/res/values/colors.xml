@@ -3,4 +3,8 @@
     <!-- Adaptive-icon background. Matches the dark slate in tools/make_icons.py;
          change both together. -->
     <color name="ic_launcher_background">#10333F</color>
+
+    <!-- Kept in sync with the constants in Ui.java. -->
+    <color name="ui_bg">#F2F4F6</color>
+    <color name="brand">#34D399</color>
 </resources>

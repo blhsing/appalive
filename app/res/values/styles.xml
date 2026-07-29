@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      NoActionBar because each screen draws its own header in brand colours.
+      Every view sets its colours explicitly (see Ui.java), so the UI looks the
+      same across OEM skins rather than inheriting whatever DeviceDefault is on
+      a given ROM.
+    -->
+    <style name="AppAliveTheme" parent="@android:style/Theme.DeviceDefault.Light.NoActionBar">
+        <item name="android:windowBackground">@color/ui_bg</item>
+        <item name="android:statusBarColor">@color/ic_launcher_background</item>
+        <item name="android:colorAccent">@color/brand</item>
+    </style>
+</resources>
