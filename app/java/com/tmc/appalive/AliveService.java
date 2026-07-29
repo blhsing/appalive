@@ -348,7 +348,24 @@ public final class AliveService extends Service {
         EventLog.dump(pw);
     }
 
-    /** Plain-text status for MainActivity. */
+    /**
+     * Call after the UI edits config: make sure the service is up, drop cached
+     * component scans, re-apply Device Owner hardening for any new target, and
+     * tick promptly so the change is visible straight away.
+     */
+    public static void notifyConfigChanged(Context ctx) {
+        if (Config.get(ctx).enabled()) {
+            Starter.start(ctx, AliveService.class, true);
+        }
+        Watchdog w = watchdog();
+        if (w != null) {
+            w.invalidateScout(null);
+            w.tickSoon(400L);
+        }
+        DeviceOwnerManager.applyHardening(ctx);
+    }
+
+    /** Plain-text status for the diagnostics screen. */
     public static String statusText(Context ctx) {
         StringBuilder sb = new StringBuilder();
         Config cfg = Config.get(ctx);

@@ -16,7 +16,7 @@ KEEP_TARGETS=0
 KEEP_SETTINGS=0
 SERIAL="${SERIAL:-}"
 
-usage() { sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'; exit 0; }
+usage() { sed -n '2,/^set -uo pipefail/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; exit 0; }
 
 while [ $# -gt 0 ]; do
     case "$1" in

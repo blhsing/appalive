@@ -11,6 +11,10 @@
 #   :never       silent methods only, never show UI
 #   :always      launch the activity as soon as silent methods fail
 #
+# --targets is optional: the installed app has a configuration screen where the
+# apps and every setting can be chosen by hand. Use the flag to script a fleet,
+# or to apply the battery exemptions, which only adb can grant.
+#
 # Options:
 #   --targets LIST          comma-separated packages to keep alive
 #   --serial ID             target a specific device
@@ -37,7 +41,9 @@ OPEN_OEM=0
 POLL_MS=""
 SERIAL="${SERIAL:-}"
 
-usage() { sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'; exit 0; }
+# Prints the header comment block above (everything up to `set -uo pipefail`),
+# so the flag list has exactly one home.
+usage() { sed -n '2,/^set -uo pipefail/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; exit 0; }
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -193,7 +199,9 @@ if [ -n "$TARGETS" ]; then
         fi
     done
 else
-    warn "no --targets given; AppAlive will run but watch nothing"
+    say "  ${C_DIM}--   no --targets given; choose apps in the app on the device${C_OFF}"
+    say "  ${C_DIM}     (note: apps added there are watched, but only adb can grant${C_OFF}"
+    say "  ${C_DIM}      the battery exemptions - re-run with --targets to apply them)${C_OFF}"
 fi
 
 # ------------------------------------------------------- device owner set-up
@@ -315,10 +323,12 @@ else
     echo "${C_YEL}Install completed with $FAILURES problem(s) - see FAIL lines above.${C_OFF}"
 fi
 say ""
+say "  Open AppAlive on the device to choose apps and change any setting."
+say ""
 say "  IMPORTANT, and not something adb or Device Owner can do for you:"
-say "  on Xiaomi/Huawei/Oppo/Vivo/Samsung, open AppAlive on the device and tap"
-say "  'Manufacturer auto-start settings', then allow AppAlive and every target."
-say "  That vendor allowlist is the usual reason apps still get killed."
+say "  on Xiaomi/Huawei/Oppo/Vivo/Samsung, tap 'Manufacturer auto-start settings'"
+say "  in the app, then allow AppAlive and every target. That vendor allowlist is"
+say "  the usual reason apps still get killed."
 say ""
 say "  status : ./status.sh"
 say "  remove : ./uninstall.sh"
